@@ -83,27 +83,31 @@ jobs:
           path: dist/*
 
   macos:
+    # Both Macs are built on an Apple Silicon runner (the Intel runners are retired);
+    # the Intel build is cross-compiled, which Apple's toolchain supports natively.
     strategy:
       fail-fast: false
       matrix:
         include:
-          - runner: macos-13
-            arch: x86_64
-          - runner: macos-latest
-            arch: aarch64
-    runs-on: ${{ matrix.runner }}
+          - arch: x86_64
+            target: x86_64-apple-darwin
+          - arch: aarch64
+            target: aarch64-apple-darwin
+    runs-on: macos-latest
     steps:
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.target }}
       - uses: Swatinem/rust-cache@v2
-      - run: cargo build --release
+      - run: cargo build --release --target ${{ matrix.target }}
       - name: Package
         run: |
           v="${GITHUB_REF_NAME#v}"
-          bash packaging/macos/build-dmg.sh "$v"
+          bash packaging/macos/build-dmg.sh "$v" "target/${{ matrix.target }}/release"
           mv "dist/Ember-IDE-$v.dmg" "dist/Ember-IDE-$v-macos-${{ matrix.arch }}.dmg"
           mkdir -p stage/ember-ide
-          cp target/release/ember README.md LICENSE stage/ember-ide/
+          cp target/${{ matrix.target }}/release/ember README.md LICENSE stage/ember-ide/
           cp -r plugins stage/ember-ide/plugins
           tar -czf "dist/Ember-IDE-${v}-macos-${{ matrix.arch }}.tar.gz" -C stage ember-ide
       - uses: actions/upload-artifact@v4
