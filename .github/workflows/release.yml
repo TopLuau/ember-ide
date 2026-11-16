@@ -1,0 +1,134 @@
+name: Release
+
+# Push a tag like v0.1.0 to build packages for every platform and attach them to a GitHub release.
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+env:
+  # Optional: set a repository variable EMBER_DISCORD_APP_ID so Rich Presence works with no setup.
+  EMBER_DISCORD_APP_ID: ${{ vars.EMBER_DISCORD_APP_ID }}
+
+jobs:
+  windows:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - runner: windows-latest
+            arch: x86_64
+            installer: true
+          - runner: windows-11-arm
+            arch: aarch64
+            installer: false
+    runs-on: ${{ matrix.runner }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+      - run: cargo build --release
+      - name: Package
+        shell: pwsh
+        run: |
+          $v = "${{ github.ref_name }}".TrimStart("v")
+          New-Item -ItemType Directory -Force dist | Out-Null
+          if ("${{ matrix.installer }}" -eq "true") {
+            choco install innosetup -y --no-progress
+            & "C:\Program Files (x86)\Inno Setup 6\ISCC.exe" "/DAppVersion=$v" packaging\windows\installer.iss
+          }
+          Compress-Archive -Path target\release\ember.exe, plugins, README.md, LICENSE -DestinationPath "dist\Ember-IDE-$v-windows-${{ matrix.arch }}-portable.zip"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: windows-${{ matrix.arch }}
+          path: dist/*
+
+  linux:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - runner: ubuntu-22.04
+            arch: x86_64
+            deb: amd64
+          # 64-bit ARM: Raspberry Pi 3/4/5 (64-bit OS), Pi 400, ARM servers, Asahi Linux
+          - runner: ubuntu-22.04-arm
+            arch: aarch64
+            deb: arm64
+    runs-on: ${{ matrix.runner }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+      - run: |
+          sudo apt-get update
+          sudo apt-get install -y libgtk-3-dev libxkbcommon-dev libwayland-dev libxcb-render0-dev libxcb-shape0-dev libxcb-xfixes0-dev libssl-dev
+      - run: cargo install cargo-deb cargo-generate-rpm --locked
+      - run: cargo build --release
+      - name: Package
+        run: |
+          v="${GITHUB_REF_NAME#v}"
+          mkdir -p dist stage/ember-ide
+          cargo deb --no-build -o "dist/ember-ide_${v}_${{ matrix.deb }}.deb"
+          cargo generate-rpm -o "dist/ember-ide-${v}-1.${{ matrix.arch }}.rpm"
+          cp target/release/ember README.md LICENSE packaging/linux/ember.desktop assets/icon.png stage/ember-ide/
+          cp -r plugins stage/ember-ide/plugins
+          tar -czf "dist/Ember-IDE-${v}-linux-${{ matrix.arch }}.tar.gz" -C stage ember-ide
+      - uses: actions/upload-artifact@v4
+        with:
+          name: linux-${{ matrix.arch }}
+          path: dist/*
+
+  macos:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - runner: macos-13
+            arch: x86_64
+          - runner: macos-latest
+            arch: aarch64
+    runs-on: ${{ matrix.runner }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+      - run: cargo build --release
+      - name: Package
+        run: |
+          v="${GITHUB_REF_NAME#v}"
+          bash packaging/macos/build-dmg.sh "$v"
+          mv "dist/Ember-IDE-$v.dmg" "dist/Ember-IDE-$v-macos-${{ matrix.arch }}.dmg"
+          mkdir -p stage/ember-ide
+          cp target/release/ember README.md LICENSE stage/ember-ide/
+          cp -r plugins stage/ember-ide/plugins
+          tar -czf "dist/Ember-IDE-${v}-macos-${{ matrix.arch }}.tar.gz" -C stage ember-ide
+      - uses: actions/upload-artifact@v4
+        with:
+          name: macos-${{ matrix.arch }}
+          path: dist/*
+
+  publish:
+    needs: [windows, linux, macos]
+    if: always() && startsWith(github.ref, 'refs/tags/')
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          path: dist
+          merge-multiple: true
+      - uses: actions/checkout@v4
+        with:
+          path: src
+      - name: Check size limits and write checksums
+        run: |
+          v="${GITHUB_REF_NAME#v}"
+          # every release file must stay under 95 MB
+          python3 src/scripts/make-manifest.py dist "$v"
+      - uses: softprops/action-gh-release@v2
+        with:
+          files: dist/*
+          generate_release_notes: true

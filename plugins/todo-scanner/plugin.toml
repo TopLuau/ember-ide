@@ -1,0 +1,4 @@
+name = "TODO Scanner"
+version = "1.0.0"
+author = "Ember"
+description = "Reports TODO / FIXME comments whenever you open a file (demonstrates the on_open hook)."

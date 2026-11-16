@@ -1,0 +1,12 @@
+[Desktop Entry]
+Type=Application
+Name=Ember IDE
+GenericName=Code Editor
+Comment=A fast, themeable IDE with plugins and a debugger
+Exec=ember %F
+Icon=ember
+Terminal=false
+Categories=Development;IDE;TextEditor;
+Keywords=code;editor;ide;rust;debugger;
+MimeType=text/plain;text/x-rust;text/x-python;
+StartupWMClass=Ember IDE

@@ -1,0 +1,4 @@
+name = "Trim Whitespace"
+version = "1.0.0"
+author = "Ember"
+description = "Removes trailing whitespace from every line (command palette: Trim Trailing Whitespace)."

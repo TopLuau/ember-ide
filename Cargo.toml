@@ -1,0 +1,67 @@
+[package]
+name = "ember"
+version = "0.1.0"
+edition = "2021"
+description = "Ember IDE - a fast, cross-platform code editor with plugins, a debugger and themes, written in Rust"
+license = "MIT"
+authors = ["Ember IDE contributors"]
+repository = "https://github.com/topluau/ember-ide"
+readme = "README.md"
+
+[dependencies]
+eframe = "0.29"
+syntect = { version = "5", default-features = false, features = ["default-fancy"] }
+rfd = "0.15"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+toml = "0.8"
+dirs = "5"
+rhai = "1"
+discord-rich-presence = "0.2"
+walkdir = "2"
+regex = "1"
+portable-pty = "0.8"
+vt100 = "0.15"
+anyhow = "1"
+image = { version = "0.25", default-features = false, features = ["png", "jpeg", "gif", "bmp", "webp", "ico", "tiff"] }
+
+[target.'cfg(windows)'.build-dependencies]
+winresource = "0.1"
+
+[profile.release]
+opt-level = 3
+lto = "thin"
+codegen-units = 1
+strip = true
+
+[profile.dev.package."*"]
+opt-level = 2
+
+[package.metadata.deb]
+name = "ember-ide"
+maintainer = "Ember IDE contributors"
+section = "devel"
+priority = "optional"
+depends = "$auto"
+extended-description = "A fast, cross-platform code editor with a plugin system, a DAP debugger, themes and Discord rich presence."
+assets = [
+    ["target/release/ember", "usr/bin/", "755"],
+    ["plugins/**/*", "usr/share/ember/plugins/", "644"],
+    ["packaging/linux/ember.desktop", "usr/share/applications/", "644"],
+    ["assets/icon.png", "usr/share/icons/hicolor/256x256/apps/ember.png", "644"],
+]
+
+[package.metadata.generate-rpm]
+name = "ember-ide"
+summary = "A fast, themeable IDE with plugins, a debugger and Discord rich presence"
+license = "MIT"
+assets = [
+    { source = "target/release/ember", dest = "/usr/bin/ember", mode = "755" },
+    { source = "plugins/*/*", dest = "/usr/share/ember/plugins/", mode = "644" },
+    { source = "packaging/linux/ember.desktop", dest = "/usr/share/applications/ember.desktop", mode = "644" },
+    { source = "assets/icon.png", dest = "/usr/share/icons/hicolor/256x256/apps/ember.png", mode = "644" },
+]
+
+[package.metadata.generate-rpm.requires]
+gtk3 = "*"
+libxkbcommon = "*"

@@ -1,0 +1,4 @@
+name = "Line Tools"
+version = "1.0.0"
+author = "Ember"
+description = "Sort, de-duplicate and reverse lines, change case and insert timestamps."

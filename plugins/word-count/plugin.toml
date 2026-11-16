@@ -1,0 +1,4 @@
+name = "Word Count"
+version = "1.0.0"
+author = "Ember"
+description = "Shows words, lines and characters for the current file."
